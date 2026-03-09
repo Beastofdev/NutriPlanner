@@ -226,15 +226,23 @@ class ProductMapper:
         - "200g" chicken, product "500g" → 1 package
         """
         price = float(product.price) if product.price else 0.0
-        base_amount = float(product.base_amount) if product.base_amount else 1.0
+        base_amount = float(product.base_amount) if product.base_amount else 0.0
         base_unit = (product.base_unit or "g").lower()
         qty_unit = (qty_unit or "g").lower()
 
+        # If base_amount is missing, try to derive from price / PUM
+        if base_amount <= 0 and product.pum_calculated and product.pum_calculated > 0:
+            base_amount = round(price / product.pum_calculated, 2)
+
+        # Final fallback
+        if base_amount <= 0:
+            base_amount = 1.0
+
         unit_weight_g = ingredient.unit_weight_g if ingredient else None
 
-        # Convert docena to units: 1 dc = 12 ud
+        # Convert docena to units: 1 dc/dz = 12 ud
         # Also detect "1/2 Docena" in product name to fix base_amount
-        if base_unit == "dc":
+        if base_unit in ("dc", "dz"):
             product_name_lower = (product.product_name or "").lower()
             if "1/2" in product_name_lower or "media" in product_name_lower:
                 base_amount = base_amount * 6  # half dozen = 6 units

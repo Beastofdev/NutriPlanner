@@ -39,6 +39,8 @@ FOOD_CATEGORY_MAP = {
         "Fruta tropical", "Frutos rojos", "Platano y banana",
         "Melon y sandia", "Fruta preparada", "Fruta desecada",
         "Frutas en almibar y en su jugo", "Frutas y Verduras",
+        # Mercadona top-level
+        "Fruta y verdura",
     ],
     # --- VERDURAS Y HORTALIZAS ---
     "verduras": [
@@ -68,6 +70,8 @@ FOOD_CATEGORY_MAP = {
         "Bacon y panceta", "Paleta", "Embutido",
         "Curados especialidades", "Cocidos de pavo", "Cocidos de pollo",
         "Otros cocidos", "Otros elaborados", "En lonchas",
+        # Mercadona top-level (includes both charcuteria and quesos)
+        "Charcuteria y quesos",
     ],
     # --- PESCADOS Y MARISCOS ---
     "pescados": [
@@ -79,6 +83,8 @@ FOOD_CATEGORY_MAP = {
         "Marisco", "Marisco congelado", "Ahumados",
         "Surimis y salazones", "Salazones y marinados",
         "Otras conservas pescado", "Rebozados",
+        # Mercadona top-level
+        "Marisco y pescado",
     ],
     # --- LACTEOS ---
     "lacteos": [
@@ -95,6 +101,9 @@ FOOD_CATEGORY_MAP = {
         "Otros postres", "Postres",
         "Petit e infantiles", "Preparados lacteos",
         "Batidos", "Batidos y cremas",
+        # Mercadona top-level
+        "Huevos, leche y mantequilla",
+        "Postres y yogures",
     ],
     # --- QUESOS ---
     "quesos": [
@@ -121,6 +130,9 @@ FOOD_CATEGORY_MAP = {
         "0,0 tostada", "Rosquilletas, picos y snacks",
         "Cereales", "Cereales y barritas", "Cereales solubles",
         "Bases y masas", "Harina",
+        # Mercadona top-level
+        "Panaderia y pasteleria",
+        "Cereales y galletas",
     ],
     # --- PASTA Y ARROZ ---
     "pasta_arroz": [
@@ -141,6 +153,8 @@ FOOD_CATEGORY_MAP = {
         "Judias, habas y otras legumbres",
         "Legumbres Texturizadas",
         "Preparados de legumbres y hortalizas",
+        # Mercadona top-level
+        "Arroz, legumbres y pasta",
     ],
     # --- ACEITES Y VINAGRES ---
     "aceites": [
@@ -148,6 +162,8 @@ FOOD_CATEGORY_MAP = {
         "Aceite de oliva intenso y suave",
         "Aceite de girasol", "Otros aceites",
         "Vinagre y ali\u00f1os",
+        # Mercadona top-level
+        "Aceite, especias y salsas",
     ],
     # --- CONSERVAS ---
     "conservas": [
@@ -156,6 +172,8 @@ FOOD_CATEGORY_MAP = {
         "Pimiento", "Alcaparras", "Cebollitas",
         "Pepinillos", "Guindillas", "Maiz",
         "Banderillas y cocktails", "Resto de encurtidos",
+        # Mercadona top-level
+        "Conservas, caldos y cremas",
     ],
     # --- CONDIMENTOS Y ESPECIAS ---
     "condimentos": [
@@ -197,6 +215,9 @@ FOOD_CATEGORY_MAP = {
         "Edulcorantes", "Reposter\u00eda",
         "Wafer y barquillos", "Hojaldres",
         "Tartas y bizcochos",
+        # Mercadona top-level
+        "Azucar, caramelos y chocolate",
+        "Cacao, cafe e infusiones",
     ],
     # --- PLATOS PREPARADOS ---
     "preparados": [
@@ -215,12 +236,17 @@ FOOD_CATEGORY_MAP = {
         "Comida etnica", "Asiatico", "Mexicano", "Oriental",
         "Ensaladas y humus", "Charcuteria origen vegetal",
         "Otros vegetales",
+        # Mercadona top-level
+        "Pizzas y platos preparados",
+        "Aperitivos",
     ],
     # --- CONGELADOS ---
     "congelados": [
         "Fruta congelada", "Helado proteina",
         "Bloques, tartas y Nata", "Conos", "Polos de hielo",
         "Tartas", "Tarrinas", "Copa", "Familiar", "Especial",
+        # Mercadona top-level
+        "Congelados",
     ],
     # --- BEBIDAS (no alcohol) ---
     "bebidas": [
@@ -241,6 +267,9 @@ FOOD_CATEGORY_MAP = {
         "Te", "Otras infusiones",
         "Horchatas", "Horchatas y granizados",
         "Mosto", "Aromatizada",
+        # Mercadona top-level
+        "Agua y refrescos",
+        "Zumos",
     ],
     # --- BEBIDAS ALCOHOLICAS ---
     "alcohol": [
@@ -255,6 +284,8 @@ FOOD_CATEGORY_MAP = {
         "Licores y cremas", "Otros licores", "Anis",
         "Combinados", "Sangrias y combinados base vino",
         "Vermut y aperitivo",
+        # Mercadona top-level
+        "Bodega",
     ],
     # --- ALIMENTACION INFANTIL ---
     "infantil": [
@@ -262,6 +293,8 @@ FOOD_CATEGORY_MAP = {
         "Desayuno y merienda infantil",
         "Potitos de Carne", "Potitos y platos preparados",
         "Pouches", "Papillas",
+        # Mercadona top-level
+        "Bebe",
     ],
     # --- VARIOS DESPENSA ---
     "despensa": [
