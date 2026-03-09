@@ -1,0 +1,105 @@
+# ============================================
+# NutriPlanner Docker Compose
+# PostgreSQL + FastAPI + React + Adminer
+# ============================================
+
+services:
+  # ==========================================
+  # PostgreSQL Database
+  # ==========================================
+  db:
+    image: pgvector/pgvector:pg15
+    container_name: nutriplanner_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-nutriplanner}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nutriplanner_secure_2026}
+      POSTGRES_DB: ${POSTGRES_DB:-nutriplanner}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5436:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nutriplanner} -d ${POSTGRES_DB:-nutriplanner}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    networks:
+      - nutriplanner_network
+
+  # ==========================================
+  # Adminer - Database GUI (puerto 8085)
+  # ==========================================
+  adminer:
+    image: adminer:latest
+    container_name: nutriplanner_adminer
+    restart: unless-stopped
+    depends_on:
+      - db
+    ports:
+      - "8085:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+    networks:
+      - nutriplanner_network
+
+  # ==========================================
+  # FastAPI Backend
+  # ==========================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: nutriplanner_backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-nutriplanner}:${POSTGRES_PASSWORD:-nutriplanner_secure_2026}@db:5432/${POSTGRES_DB:-nutriplanner}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - SECRET_KEY=${SECRET_KEY:-supersecretkey2026}
+      - ENVIRONMENT=production
+    ports:
+      - "8004:8000"
+    volumes:
+      - ./backend/logs:/app/logs
+      - ./backend/scripts:/app/scripts:ro
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - nutriplanner_network
+
+  # ==========================================
+  # React Frontend + Nginx
+  # ==========================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: nutriplanner_frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+    networks:
+      - nutriplanner_network
+
+# ==========================================
+# Volumes & Networks
+# ==========================================
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  nutriplanner_network:
+    driver: bridge

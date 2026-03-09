@@ -1,0 +1,22 @@
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+python-dotenv
+google-genai
+sqlalchemy
+requests
+beautifulsoup4
+python-jose[cryptography]
+bcrypt
+python-multipart
+# PostgreSQL support
+psycopg2-binary
+asyncpg
+pandas
+numpy
+httpx
+# sentence-transformers  # Deshabilitado temporalmente - consume 450MB RAM en Render
+pgvector
+sentry-sdk[fastapi]
+rapidfuzz

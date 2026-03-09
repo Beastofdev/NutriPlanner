@@ -1,0 +1,44 @@
+# --- SEGURIDAD Y SECRETOS ---
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+**/.env
+**/.env.local
+**/.env.*.local
+*.pem
+*.key
+.mcp.json
+
+# --- PYTHON ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+venv/
+
+# --- NODE / FRONTEND ---
+node_modules/
+build/
+dist/
+.DS_Store
+
+# --- IDE ---
+.vscode/
+.idea/
+
+# --- IMAGENES DEBUG ---
+*.png
+!frontend/src/assets/**/*.png
+!frontend/public/icon-*.png
+!backend/static/recipe_images/*.webp
+
+# --- BASE DE DATOS ---
+*.db
+*.sqlite3
+
+# --- MISC ---
+.aider*
+.vercel
+.claude/
