@@ -1,7 +1,6 @@
 # ============================================
-# NutriConsum Backend Dockerfile
+# NutriPlanner Backend Dockerfile
 # Multi-stage build for production deployment
-# FIXED: Permission issues with appuser
 # ============================================
 
 # Stage 1: Builder
