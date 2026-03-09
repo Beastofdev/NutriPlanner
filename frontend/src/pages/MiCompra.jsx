@@ -571,7 +571,7 @@ export default function MiCompra() {
     // ==================================================================
     // Shared bottom CTA: "Comprar en tienda" — dynamic per supermarket
     // ==================================================================
-    const activeSupermarket = supermarkets.find(s => s.code === activeTab);
+    const activeSupermarket = supermarkets.find(s => s.code === activeSuperTab);
     const storeSearchUrl = activeSupermarket?.affiliate_url_template?.replace('{product_name}', '') || '#';
 
     const handleCopyShoppingList = async () => {
@@ -599,11 +599,11 @@ export default function MiCompra() {
             total: summary.mix,
             items: comparisonData?.items?.length,
             source: activePageTab,
-            supermarket: activeTab,
+            supermarket: activeSuperTab,
         });
         if (user && comparisonData) {
             const offerSavings = comparisonData?.stats?.offer_savings || 0;
-            api.saveShoppingHistory(summary.mix, offerSavings, activeTab || 'UNKNOWN')
+            api.saveShoppingHistory(summary.mix, offerSavings, activeSuperTab || 'UNKNOWN')
                 .catch(err => console.warn('[ShoppingHistory]', err));
         }
     };
