@@ -13,8 +13,16 @@ export default function RecipePublic() {
     useEffect(() => {
         const fetchRecipe = async () => {
             try {
-                // slug can be a recipe_id (number) or an encoded name
-                const dishName = isNaN(slug) ? decodeURIComponent(slug) : slug;
+                // If slug is numeric, look up recipe name first via catalog
+                let dishName;
+                if (!isNaN(slug) && slug.trim() !== '') {
+                    const catalog = await api.getRecipes();
+                    const match = (catalog.recipes || []).find(r => String(r.id) === slug);
+                    if (!match) throw new Error('not found');
+                    dishName = match.name;
+                } else {
+                    dishName = decodeURIComponent(slug);
+                }
                 const data = await api.getRecipeDetails(dishName);
                 setRecipe(data);
             } catch (err) {
@@ -90,7 +98,7 @@ export default function RecipePublic() {
                 {time && (
                     <span className="flex items-center gap-1 text-sm text-[var(--color-text-secondary)] bg-[var(--color-tint-amber)] px-3 py-1 rounded-full">
                         <span className="material-symbols-outlined text-sm text-[var(--color-warning)]">timer</span>
-                        {time} min
+                        {String(time).replace(/\s*min\s*$/i, '')} min
                     </span>
                 )}
             </div>

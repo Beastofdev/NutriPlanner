@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api, resolveImageUrl } from '../services/api';
 import BottomNav from '../components/NavBar';
@@ -150,7 +150,9 @@ const FILTER_TABS = [
 
 export default function Recetas() {
     const navigate = useNavigate();
+    const location = useLocation();
     const { user } = useAuth();
+    const isPublicRoute = !location.pathname.startsWith('/app');
 
     const [allRecipes, setAllRecipes] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -313,23 +315,28 @@ export default function Recetas() {
     };
 
     const navigateToRecipe = (recipe) => {
-        // Adapt DB recipe format to Recipe.jsx expected format
-        navigate('/app/receta', {
-            state: {
-                dish: {
-                    nombre: recipe.name,
-                    calorias: recipe.calories,
-                    recipe_id: recipe.id,
-                    prep_time: recipe.prep_time_minutes,
-                    image_url: recipe.image_url,
-                    protein: recipe.protein,
-                    carbs: recipe.carbs,
-                    fats: recipe.fats,
-                    ingredientes: [],
+        if (isPublicRoute) {
+            // Public route: navigate to /recetas/:slug (RecipePublic)
+            navigate(`/recetas/${encodeURIComponent(recipe.name)}`);
+        } else {
+            // App route: navigate to /app/receta (Recipe.jsx with state)
+            navigate('/app/receta', {
+                state: {
+                    dish: {
+                        nombre: recipe.name,
+                        calorias: recipe.calories,
+                        recipe_id: recipe.id,
+                        prep_time: recipe.prep_time_minutes,
+                        image_url: recipe.image_url,
+                        protein: recipe.protein,
+                        carbs: recipe.carbs,
+                        fats: recipe.fats,
+                        ingredientes: [],
+                    },
+                    imgUrl: recipe.image_url,
                 },
-                imgUrl: recipe.image_url,
-            }
-        });
+            });
+        }
     };
 
     const navigateToPlanRecipe = (dish) => {

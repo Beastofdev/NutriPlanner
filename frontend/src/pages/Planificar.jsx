@@ -169,7 +169,7 @@ export default function Planificar() {
     }
 
     return (
-        <div className="max-w-3xl mx-auto px-5 py-10 pb-32">
+        <div className="max-w-3xl mx-auto px-5 py-10 pb-12">
             {/* Title */}
             <div className="text-center mb-10">
                 <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4" style={{ background: 'var(--gradient-hero)' }}>
@@ -318,12 +318,12 @@ export default function Planificar() {
                 )}
             </div>
 
-            {/* Sticky CTA */}
-            <div className="fixed bottom-0 left-0 right-0 bg-[var(--color-bg-header)] backdrop-blur-md border-t border-[var(--color-border)] p-4 z-50 flex justify-center">
+            {/* CTA — inline on mobile, sticky on larger screens */}
+            <div className="mt-8">
                 <button
                     onClick={handleGenerate}
                     disabled={loading}
-                    className="w-full max-w-3xl h-14 text-white font-bold text-lg rounded-full flex items-center justify-center gap-2 shadow-lg hover:scale-[1.02] active:scale-[0.97] transition-transform disabled:opacity-60"
+                    className="w-full h-14 text-white font-bold text-lg rounded-full flex items-center justify-center gap-2 shadow-lg hover:scale-[1.02] active:scale-[0.97] transition-transform disabled:opacity-60"
                     style={{ background: 'var(--gradient-hero)' }}
                 >
                     <span className="material-symbols-outlined text-xl">auto_awesome</span>

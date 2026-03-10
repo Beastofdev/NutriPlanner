@@ -28,18 +28,30 @@ export default function PublicHeader() {
                 {/* Nav links + CTA */}
                 <div className="flex items-center gap-4">
                     <Link
+                        to="/comparar"
+                        className="hidden sm:block text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] transition-colors"
+                    >
+                        Comparar
+                    </Link>
+                    <Link
                         to="/recetas"
                         className="hidden sm:block text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] transition-colors"
                     >
                         Recetas
                     </Link>
+                    <Link
+                        to="/planificar"
+                        className="hidden md:block text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] transition-colors"
+                    >
+                        Planificar
+                    </Link>
                     <button
-                        onClick={() => navigate('/planificar')}
+                        onClick={() => navigate('/comparar')}
                         className="flex items-center gap-1.5 px-4 py-2 rounded-full text-white text-sm font-semibold shadow-md hover:scale-[1.03] active:scale-[0.97] transition-transform"
                         style={{ background: 'var(--gradient-hero)' }}
                     >
-                        <span className="material-symbols-outlined text-base">restaurant_menu</span>
-                        Planificar Menu
+                        <span className="material-symbols-outlined text-base">compare_arrows</span>
+                        Comparar Precios
                     </button>
                 </div>
             </div>

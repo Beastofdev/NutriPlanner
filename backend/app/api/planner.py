@@ -2271,3 +2271,300 @@ async def search_recipes_by_ingredients(
     results.sort(key=lambda r: (-r["coverage"], -r["matched_count"], r["missing_count"]))
 
     return {"recipes": results[:limit], "total": len(results)}
+
+
+# ==========================================
+# PRODUCT COMPARATOR ENDPOINTS (Public)
+# ==========================================
+
+@router.get("/products/search")
+async def search_products(
+    q: str = "",
+    category: str = None,
+    supermarket: str = None,
+    offers_only: bool = False,
+    limit: int = 30,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+):
+    """Search products by name with optional filters. Public endpoint."""
+    from sqlalchemy import func as sqlfunc
+
+    limit = max(1, min(limit, 100))
+    offset = max(0, offset)
+
+    query = db.query(Product).filter(Product.product_name.isnot(None))
+
+    if q and len(q) >= 2:
+        query = query.filter(Product.product_name.ilike(f"%{q}%"))
+    if category:
+        query = query.filter(Product.ai_category == category)
+    if supermarket:
+        query = query.filter(Product.supermarket == supermarket.upper())
+    if offers_only:
+        query = query.filter(Product.is_on_offer == 1)
+
+    total = query.count()
+    products = (
+        query.order_by(Product.product_name)
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
+    return {
+        "products": [
+            {
+                "id": p.id,
+                "product_name": p.product_name,
+                "brand": p.brand,
+                "supermarket": p.supermarket,
+                "price": round(float(p.price), 2) if p.price else None,
+                "original_price": round(float(p.original_price), 2) if p.original_price else None,
+                "discount_percentage": round(float(p.discount_percentage), 1) if p.discount_percentage else None,
+                "is_on_offer": bool(p.is_on_offer),
+                "image_url": p.image_url,
+                "category": p.ai_category,
+                "format": p.product_format,
+                "base_amount": p.base_amount,
+                "base_unit": p.base_unit,
+                "pum": round(float(p.pum_calculated), 2) if p.pum_calculated else None,
+            }
+            for p in products
+        ],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
+
+
+@router.get("/products/categories")
+async def list_product_categories(db: Session = Depends(get_db)):
+    """List unique product categories with counts. Public endpoint."""
+    from sqlalchemy import func as sqlfunc
+
+    rows = (
+        db.query(Product.ai_category, sqlfunc.count(Product.id))
+        .filter(Product.ai_category.isnot(None), Product.product_name.isnot(None))
+        .group_by(Product.ai_category)
+        .order_by(sqlfunc.count(Product.id).desc())
+        .all()
+    )
+
+    return {
+        "categories": [
+            {"name": r[0], "count": r[1]}
+            for r in rows
+            if r[0]
+        ]
+    }
+
+
+@router.get("/products/compare")
+async def compare_product(
+    q: str = "",
+    limit: int = 20,
+    db: Session = Depends(get_db),
+):
+    """Compare a product across supermarkets. Groups similar products side by side."""
+    if not q or len(q) < 2:
+        return {"query": q, "results": []}
+
+    from app.services.supermarket_registry import supermarket_registry
+    active_codes = supermarket_registry.get_all_codes()
+
+    # Find matching products across all supers
+    products = (
+        db.query(Product)
+        .filter(
+            Product.product_name.ilike(f"%{q}%"),
+            Product.supermarket.in_(active_codes),
+            Product.price.isnot(None),
+        )
+        .order_by(Product.price)
+        .limit(limit * 3)  # fetch more to allow grouping
+        .all()
+    )
+
+    # Group by supermarket
+    by_super = {}
+    for p in products:
+        code = (p.supermarket or "").upper()
+        by_super.setdefault(code, []).append({
+            "id": p.id,
+            "product_name": p.product_name,
+            "brand": p.brand,
+            "price": round(float(p.price), 2) if p.price else None,
+            "original_price": round(float(p.original_price), 2) if p.original_price else None,
+            "is_on_offer": bool(p.is_on_offer),
+            "image_url": p.image_url,
+            "format": p.product_format,
+            "pum": round(float(p.pum_calculated), 2) if p.pum_calculated else None,
+        })
+
+    # Build side-by-side comparison (cheapest per super)
+    results = []
+    all_codes = sorted(by_super.keys())
+    if len(all_codes) >= 2:
+        # Pair up cheapest from each super
+        code_a, code_b = all_codes[0], all_codes[1]
+        max_pairs = min(limit, len(by_super.get(code_a, [])), len(by_super.get(code_b, [])))
+        for i in range(max_pairs):
+            a = by_super[code_a][i] if i < len(by_super[code_a]) else None
+            b = by_super[code_b][i] if i < len(by_super[code_b]) else None
+            if a and b:
+                cheaper = code_a if (a["price"] or 999) <= (b["price"] or 999) else code_b
+                saving = abs((a["price"] or 0) - (b["price"] or 0))
+                results.append({
+                    code_a.lower(): a,
+                    code_b.lower(): b,
+                    "cheaper": cheaper,
+                    "savings": round(saving, 2),
+                })
+    elif len(all_codes) == 1:
+        code = all_codes[0]
+        for p in by_super[code][:limit]:
+            results.append({code.lower(): p, "cheaper": code, "savings": 0})
+
+    return {"query": q, "results": results, "supermarkets": all_codes}
+
+
+# Cesta básica: productos esenciales para comparar supers
+BASIC_BASKET = [
+    "leche entera", "pan molde", "huevos", "aceite oliva",
+    "arroz", "pasta", "tomate frito", "atun", "pollo",
+    "jamon", "queso", "yogur", "platanos", "patatas",
+    "cebolla", "lechuga", "mantequilla", "cafe", "azucar", "sal",
+]
+
+
+@router.get("/products/rankings")
+async def get_product_rankings(
+    type: str = "cheapest_basket",
+    limit: int = 20,
+    db: Session = Depends(get_db),
+):
+    """Product rankings for landing page content. Public endpoint."""
+    from sqlalchemy import func as sqlfunc
+    from app.services.supermarket_registry import supermarket_registry
+    active_codes = supermarket_registry.get_all_codes()
+
+    if type == "cheapest_basket":
+        # Compare basic basket products across supermarkets
+        basket_items = []
+        totals = {code: 0.0 for code in active_codes}
+
+        for item_name in BASIC_BASKET:
+            item_data = {"name": item_name}
+            for code in active_codes:
+                product = (
+                    db.query(Product)
+                    .filter(
+                        Product.product_name.ilike(f"%{item_name}%"),
+                        Product.supermarket == code,
+                        Product.price.isnot(None),
+                    )
+                    .order_by(Product.price)
+                    .first()
+                )
+                if product:
+                    price = round(float(product.price), 2)
+                    item_data[code.lower()] = {
+                        "product_name": product.product_name,
+                        "price": price,
+                        "brand": product.brand,
+                        "image_url": product.image_url,
+                    }
+                    totals[code] += price
+                else:
+                    item_data[code.lower()] = None
+
+            # Determine cheaper
+            prices = {code: item_data.get(code.lower(), {}).get("price") for code in active_codes if item_data.get(code.lower())}
+            if len(prices) >= 2:
+                cheaper_code = min(prices, key=lambda k: prices[k] or 999)
+                item_data["cheaper"] = cheaper_code
+            basket_items.append(item_data)
+
+        # Round totals
+        for code in totals:
+            totals[code] = round(totals[code], 2)
+
+        cheapest_super = min(totals, key=totals.get) if totals else None
+
+        return {
+            "type": "cheapest_basket",
+            "items": basket_items,
+            "totals": totals,
+            "cheapest": cheapest_super,
+            "savings": round(max(totals.values()) - min(totals.values()), 2) if totals else 0,
+        }
+
+    elif type == "biggest_savings":
+        # Products with biggest price difference between supers
+        from sqlalchemy import text as sql_text
+
+        if len(active_codes) < 2:
+            return {"type": "biggest_savings", "items": []}
+
+        code_a, code_b = active_codes[0], active_codes[1]
+        # Find products that exist in both supers (by main_concept or product_name)
+        rows = db.execute(sql_text("""
+            SELECT
+                a.product_name as name_a, a.price as price_a, a.brand as brand_a, a.supermarket as super_a, a.image_url as img_a,
+                b.product_name as name_b, b.price as price_b, b.brand as brand_b, b.supermarket as super_b, b.image_url as img_b,
+                ABS(a.price - b.price) as diff
+            FROM products a
+            JOIN products b ON LOWER(a.main_concept) = LOWER(b.main_concept)
+                AND a.supermarket = :code_a AND b.supermarket = :code_b
+                AND a.price IS NOT NULL AND b.price IS NOT NULL
+                AND a.main_concept IS NOT NULL
+            ORDER BY diff DESC
+            LIMIT :lim
+        """), {"code_a": code_a, "code_b": code_b, "lim": limit}).fetchall()
+
+        items = []
+        for r in rows:
+            cheaper = code_a if r.price_a <= r.price_b else code_b
+            items.append({
+                code_a.lower(): {"product_name": r.name_a, "price": round(float(r.price_a), 2), "brand": r.brand_a, "image_url": r.img_a},
+                code_b.lower(): {"product_name": r.name_b, "price": round(float(r.price_b), 2), "brand": r.brand_b, "image_url": r.img_b},
+                "cheaper": cheaper,
+                "savings": round(float(r.diff), 2),
+            })
+
+        return {"type": "biggest_savings", "items": items}
+
+    elif type == "most_offers":
+        # Products with biggest discounts right now
+        products = (
+            db.query(Product)
+            .filter(
+                Product.is_on_offer == 1,
+                Product.supermarket.in_(active_codes),
+                Product.discount_percentage.isnot(None),
+                Product.price.isnot(None),
+            )
+            .order_by(Product.discount_percentage.desc())
+            .limit(limit)
+            .all()
+        )
+
+        return {
+            "type": "most_offers",
+            "items": [
+                {
+                    "product_name": p.product_name,
+                    "brand": p.brand,
+                    "supermarket": p.supermarket,
+                    "price": round(float(p.price), 2),
+                    "original_price": round(float(p.original_price), 2) if p.original_price else None,
+                    "discount": round(float(p.discount_percentage), 1),
+                    "image_url": p.image_url,
+                    "category": p.ai_category,
+                }
+                for p in products
+            ],
+        }
+
+    return {"error": "Invalid type. Use: cheapest_basket, biggest_savings, most_offers"}

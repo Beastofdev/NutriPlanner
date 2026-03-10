@@ -56,6 +56,7 @@ class ErrorBoundary extends Component {
 // Lazy-loaded pages (code splitting)
 // Public pages (no auth required)
 const Landing = lazy(() => import('./pages/Landing'));
+const Comparar = lazy(() => import('./pages/Comparar'));
 const Planificar = lazy(() => import('./pages/Planificar'));
 const MiMenu = lazy(() => import('./pages/MiMenu'));
 const RecipePublic = lazy(() => import('./pages/RecipePublic'));
@@ -151,6 +152,7 @@ function App() {
               {/* ======= PUBLIC ROUTES (PublicLayout: header + no sidebar) ======= */}
               <Route element={<PublicLayout />}>
                 <Route path="/" element={<Landing />} />
+                <Route path="/comparar" element={<Comparar />} />
                 <Route path="/planificar" element={<Planificar />} />
                 <Route path="/mi-menu" element={<MiMenu />} />
                 <Route path="/recetas" element={<Recetas />} />

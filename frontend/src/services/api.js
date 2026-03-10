@@ -347,4 +347,25 @@ export const api = {
     const response = await apiClient.get('/api/family-summary');
     return response.data;
   },
+
+  // --- PRODUCT COMPARATOR ---
+  searchProducts: async (params) => {
+    const response = await apiClient.get('/api/products/search', { params });
+    return response.data;
+  },
+
+  getProductCategories: async () => {
+    const response = await apiClient.get('/api/products/categories');
+    return response.data;
+  },
+
+  compareProduct: async (q, limit = 20) => {
+    const response = await apiClient.get('/api/products/compare', { params: { q, limit } });
+    return response.data;
+  },
+
+  getProductRankings: async (type = 'cheapest_basket', limit = 20) => {
+    const response = await apiClient.get('/api/products/rankings', { params: { type, limit } });
+    return response.data;
+  },
 };
