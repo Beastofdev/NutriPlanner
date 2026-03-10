@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './components/Toast';
 import AppLayout from './components/AppLayout';
+import PublicLayout from './components/PublicLayout';
 import InstallBanner from './components/InstallBanner';
 import ConsentBanner from './components/ConsentBanner';
 import { initAnalytics } from './services/analytics';
@@ -53,8 +54,19 @@ class ErrorBoundary extends Component {
 }
 
 // Lazy-loaded pages (code splitting)
+// Public pages (no auth required)
+const Landing = lazy(() => import('./pages/Landing'));
+const Planificar = lazy(() => import('./pages/Planificar'));
+const MiMenu = lazy(() => import('./pages/MiMenu'));
+const RecipePublic = lazy(() => import('./pages/RecipePublic'));
+
+// Auth pages
 const Login = lazy(() => import('./pages/auth/Login'));
 const Register = lazy(() => import('./pages/auth/Register'));
+const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'));
+
+// App pages (behind sidebar layout)
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Home = lazy(() => import('./pages/Home'));
 const Menu = lazy(() => import('./pages/Menu'));
@@ -69,8 +81,6 @@ const MisFavoritas = lazy(() => import('./pages/MisFavoritas'));
 const Familia = lazy(() => import('./pages/Familia'));
 const MiCompra = lazy(() => import('./pages/MiCompra'));
 const Privacidad = lazy(() => import('./pages/legal/Privacidad'));
-const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
-const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'));
 
 const PageLoader = () => (
   <div className="h-screen bg-[var(--color-bg-page)] flex items-center justify-center font-sans">
@@ -138,31 +148,28 @@ function App() {
           }} />
           <Suspense fallback={<PageLoader />}>
             <Routes>
-              {/* Rutas de Autenticación */}
-              <Route path="/login" element={
-                <PublicRoute>
-                  <Login />
-                </PublicRoute>
-              } />
+              {/* ======= PUBLIC ROUTES (PublicLayout: header + no sidebar) ======= */}
+              <Route element={<PublicLayout />}>
+                <Route path="/" element={<Landing />} />
+                <Route path="/planificar" element={<Planificar />} />
+                <Route path="/mi-menu" element={<MiMenu />} />
+                <Route path="/recetas" element={<Recetas />} />
+                <Route path="/recetas/:slug" element={<RecipePublic />} />
+              </Route>
 
-              <Route path="/register" element={
-                <PublicRoute>
-                  <Register />
-                </PublicRoute>
-              } />
-
+              {/* ======= AUTH ROUTES ======= */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
 
-              {/* Rutas Privadas */}
-
+              {/* ======= APP ROUTES (AppLayout: sidebar on desktop) ======= */}
               <Route path="/app" element={
                 <GuestAllowedRoute>
                   <Dashboard />
                 </GuestAllowedRoute>
               } />
 
-              {/* Rutas con AppLayout (sidebar en desktop) */}
               <Route path="/app/home" element={
                 <GuestAllowedRoute>
                   <AppLayout><Home /></AppLayout>
@@ -187,7 +194,6 @@ function App() {
                 </GuestAllowedRoute>
               } />
 
-              {/* Redirects: old Lista/Comparador routes → MiCompra */}
               <Route path="/app/lista" element={<Navigate to="/app/mi-compra" replace />} />
               <Route path="/app/comparador" element={<Navigate to="/app/mi-compra" replace />} />
 
@@ -220,7 +226,6 @@ function App() {
                   <AppLayout><Inventario /></AppLayout>
                 </GuestAllowedRoute>
               } />
-              {/* Redirect old route */}
               <Route path="/app/inventario" element={<Navigate to="/app/despensa" replace />} />
 
               <Route path="/app/favoritas" element={
@@ -244,11 +249,8 @@ function App() {
               {/* Legal */}
               <Route path="/privacidad" element={<Privacidad />} />
 
-              {/* Catch-all para rutas /app/ inexistentes (bookmarks, typos, URLs en inglés) */}
+              {/* Catch-all */}
               <Route path="/app/*" element={<Navigate to="/app/home" replace />} />
-
-              {/* Redirección por defecto */}
-              <Route path="/" element={<Navigate to="/login" replace />} />
             </Routes>
           </Suspense>
         </AuthProvider>

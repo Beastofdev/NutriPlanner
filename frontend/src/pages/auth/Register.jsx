@@ -128,8 +128,15 @@ export default function Register() {
                         {isLoading ? 'Creando cuenta...' : 'Registrarse'}
                     </button>
                 </form>
-                <div className="mt-8 text-center">
+                <div className="mt-8 text-center space-y-3">
                     <p className="text-sm text-[var(--color-text-muted)]">¿Ya tienes cuenta? <Link to="/login" className="text-[var(--color-primary)] font-bold">Inicia sesión</Link></p>
+                    <Link
+                        to="/planificar"
+                        className="text-[var(--color-primary)] text-sm font-semibold hover:underline transition-colors flex items-center justify-center gap-2"
+                    >
+                        <span className="material-symbols-outlined text-base">auto_awesome</span>
+                        Continuar sin cuenta
+                    </Link>
                 </div>
                 </div>{/* /max-w-md */}
             </div>{/* /RIGHT COLUMN */}

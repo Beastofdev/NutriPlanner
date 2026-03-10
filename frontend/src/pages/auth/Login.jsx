@@ -119,13 +119,13 @@ export default function Login() {
                         </button>
                     </form>
 
-                    <div className="w-full text-center mt-6">
+                    <div className="w-full text-center mt-6 space-y-3">
                         <Link
-                            to="/app?guest=true"
-                            className="text-[var(--color-text-muted)] text-sm hover:text-[var(--color-primary)] transition-colors flex items-center justify-center gap-2 group"
+                            to="/planificar"
+                            className="text-[var(--color-primary)] text-sm font-semibold hover:underline transition-colors flex items-center justify-center gap-2"
                         >
-                            <span className="material-symbols-outlined text-base">bolt</span>
-                            <span className="group-hover:underline">Probar ahora sin crear cuenta (Invitado)</span>
+                            <span className="material-symbols-outlined text-base">auto_awesome</span>
+                            Continuar sin cuenta
                         </Link>
                     </div>
 

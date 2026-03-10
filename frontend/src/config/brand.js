@@ -8,10 +8,12 @@
 export const BRAND = {
   name: import.meta.env.VITE_APP_NAME || 'NutriPlanner',
   tagline: 'Tu planificador nutricional inteligente',
+  landingTagline: 'Planifica tu menu semanal con precios reales de supermercado',
+  metaDescription: 'Genera menus semanales personalizados con lista de compra y precios reales de Mercadona y Consum. Gratis, sin registro.',
   initials: 'NP',
   version: '1.0',
   supportEmail: 'soporte@nutriplanner.es',
-  siteUrl: 'nutriplanner.vercel.app',
+  siteUrl: 'nutriplanner-alpha.vercel.app',
 };
 
 /** localStorage key prefix — prevents collision with other apps */
