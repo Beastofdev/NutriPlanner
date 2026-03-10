@@ -66,7 +66,9 @@ function GridSkeleton({ count = 12 }) {
 function ProductCard({ product }) {
     const [imgError, setImgError] = useState(false);
     const superMeta = SUPERMARKET_META[product.supermarket] ?? null;
-    const hasOffer = product.is_on_offer && product.original_price != null && product.original_price > product.price;
+    // Only show offer if discount is realistic (<60%) and original_price isn't PUM
+    const rawOffer = product.is_on_offer && product.original_price != null && product.original_price > product.price;
+    const hasOffer = rawOffer && product.discount_percentage != null && product.discount_percentage <= 60 && product.original_price <= product.price * 5;
 
     const imageUrl = resolveImageUrl(product.image_url);
 
@@ -83,13 +85,11 @@ function ProductCard({ product }) {
                         onError={() => setImgError(true)}
                     />
                 ) : (
-                    <div className="w-16 h-16 rounded-full flex items-center justify-center bg-[var(--color-bg-muted)]">
-                        <span
-                            className="material-symbols-outlined text-[32px] text-[var(--color-text-muted)]"
-                            style={{ fontVariationSettings: "'FILL' 0" }}
-                        >
-                            {PLACEHOLDER_ICON}
-                        </span>
+                    <div
+                        className="w-16 h-16 rounded-2xl flex items-center justify-center text-white text-xl font-bold"
+                        style={{ background: superMeta?.color ?? 'var(--color-primary)', opacity: 0.85 }}
+                    >
+                        {(product.product_name || '?')[0].toUpperCase()}
                     </div>
                 )}
 

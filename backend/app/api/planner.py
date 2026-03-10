@@ -2288,7 +2288,7 @@ async def search_products(
     db: Session = Depends(get_db),
 ):
     """Search products by name with optional filters. Public endpoint."""
-    from sqlalchemy import func as sqlfunc
+    from sqlalchemy import func as sqlfunc, case
 
     limit = max(1, min(limit, 100))
     offset = max(0, offset)
@@ -2305,31 +2305,60 @@ async def search_products(
         query = query.filter(Product.is_on_offer == 1)
 
     total = query.count()
-    products = (
-        query.order_by(Product.product_name)
-        .offset(offset)
-        .limit(limit)
-        .all()
-    )
+
+    # Relevance: exact start > word boundary > contains
+    if q and len(q) >= 2:
+        relevance = case(
+            (Product.product_name.ilike(f"{q}%"), 0),        # starts with query
+            (Product.product_name.ilike(f"% {q}%"), 1),      # word boundary
+            else_=2,                                          # contains anywhere
+        )
+        products = (
+            query.order_by(relevance, Product.price.asc())
+            .offset(offset)
+            .limit(limit)
+            .all()
+        )
+    else:
+        products = (
+            query.order_by(Product.product_name)
+            .offset(offset)
+            .limit(limit)
+            .all()
+        )
+
+    def _sanitize_offer(p):
+        """Return sane discount data — reject PUM-as-original-price."""
+        price = round(float(p.price), 2) if p.price else None
+        orig = round(float(p.original_price), 2) if p.original_price else None
+        # If original_price is >5x the price, it's likely PUM not real price
+        if price and orig and orig > price * 5:
+            return price, None, None, False
+        disc = round(float(p.discount_percentage), 1) if p.discount_percentage else None
+        # Cap discounts at 60% — anything higher is data error
+        if disc and disc > 60:
+            return price, None, None, False
+        is_offer = bool(p.is_on_offer) and orig is not None and orig > (price or 0)
+        return price, orig, disc, is_offer
 
     return {
         "products": [
-            {
+            (lambda pr, orig, disc, offer: {
                 "id": p.id,
                 "product_name": p.product_name,
                 "brand": p.brand,
                 "supermarket": p.supermarket,
-                "price": round(float(p.price), 2) if p.price else None,
-                "original_price": round(float(p.original_price), 2) if p.original_price else None,
-                "discount_percentage": round(float(p.discount_percentage), 1) if p.discount_percentage else None,
-                "is_on_offer": bool(p.is_on_offer),
+                "price": pr,
+                "original_price": orig,
+                "discount_percentage": disc,
+                "is_on_offer": offer,
                 "image_url": p.image_url,
                 "category": p.ai_category,
                 "format": p.product_format,
                 "base_amount": p.base_amount,
                 "base_unit": p.base_unit,
                 "pum": round(float(p.pum_calculated), 2) if p.pum_calculated else None,
-            }
+            })(*_sanitize_offer(p))
             for p in products
         ],
         "total": total,
@@ -2430,11 +2459,29 @@ async def compare_product(
 
 
 # Cesta básica: productos esenciales para comparar supers
+# Cesta básica: each entry is (display_name, [search_terms_in_priority_order])
+# Multiple search terms help find products across different supermarket naming conventions
 BASIC_BASKET = [
-    "leche entera", "pan molde", "huevos", "aceite oliva",
-    "arroz", "pasta", "tomate frito", "atun", "pollo",
-    "jamon", "queso", "yogur", "platanos", "patatas",
-    "cebolla", "lechuga", "mantequilla", "cafe", "azucar", "sal",
+    ("Leche Entera", ["leche entera"]),
+    ("Pan Molde", ["pan molde", "pan de molde"]),
+    ("Huevos", ["huevos", "huevo"]),
+    ("Aceite Oliva", ["aceite oliva", "aceite de oliva"]),
+    ("Arroz", ["arroz"]),
+    ("Pasta", ["macarrones", "espagueti", "pasta"]),
+    ("Tomate Frito", ["tomate frito"]),
+    ("Atun", ["atun", "atún"]),
+    ("Pollo", ["pechuga pollo", "pollo"]),
+    ("Jamon", ["jamon cocido", "jamón cocido", "jamon", "jamón"]),
+    ("Queso", ["queso lonchas", "queso"]),
+    ("Yogur", ["yogur natural", "yogur"]),
+    ("Platanos", ["plátano", "platano", "banana"]),
+    ("Patatas", ["patata", "patatas"]),
+    ("Cebolla", ["cebolla", "cebollas"]),
+    ("Lechuga", ["lechuga"]),
+    ("Mantequilla", ["mantequilla"]),
+    ("Cafe", ["cafe molido", "café molido", "cafe", "café"]),
+    ("Azucar", ["azucar", "azúcar"]),
+    ("Sal", ["sal fina", "sal"]),
 ]
 
 
@@ -2454,19 +2501,23 @@ async def get_product_rankings(
         basket_items = []
         totals = {code: 0.0 for code in active_codes}
 
-        for item_name in BASIC_BASKET:
-            item_data = {"name": item_name}
+        for display_name, search_terms in BASIC_BASKET:
+            item_data = {"name": display_name}
             for code in active_codes:
-                product = (
-                    db.query(Product)
-                    .filter(
-                        Product.product_name.ilike(f"%{item_name}%"),
-                        Product.supermarket == code,
-                        Product.price.isnot(None),
+                product = None
+                for term in search_terms:
+                    product = (
+                        db.query(Product)
+                        .filter(
+                            Product.product_name.ilike(f"%{term}%"),
+                            Product.supermarket == code,
+                            Product.price.isnot(None),
+                        )
+                        .order_by(Product.price)
+                        .first()
                     )
-                    .order_by(Product.price)
-                    .first()
-                )
+                    if product:
+                        break
                 if product:
                     price = round(float(product.price), 2)
                     item_data[code.lower()] = {
@@ -2501,49 +2552,61 @@ async def get_product_rankings(
         }
 
     elif type == "biggest_savings":
-        # Products with biggest price difference between supers
-        from sqlalchemy import text as sql_text
-
+        # Find common products with biggest price difference using BASIC_BASKET + popular items
         if len(active_codes) < 2:
             return {"type": "biggest_savings", "items": []}
 
+        COMPARISON_ITEMS = [
+            "leche entera", "agua mineral", "yogur natural", "pan molde",
+            "tomate frito", "aceite girasol", "macarrones", "arroz",
+            "huevos", "atun", "jamon cocido", "queso lonchas",
+            "mantequilla", "cafe molido", "galletas", "zumo naranja",
+            "cerveza", "detergente", "papel higienico", "gel ducha",
+        ]
+
         code_a, code_b = active_codes[0], active_codes[1]
-        # Find products that exist in both supers (by main_concept or product_name)
-        rows = db.execute(sql_text("""
-            SELECT
-                a.product_name as name_a, a.price as price_a, a.brand as brand_a, a.supermarket as super_a, a.image_url as img_a,
-                b.product_name as name_b, b.price as price_b, b.brand as brand_b, b.supermarket as super_b, b.image_url as img_b,
-                ABS(a.price - b.price) as diff
-            FROM products a
-            JOIN products b ON LOWER(a.main_concept) = LOWER(b.main_concept)
-                AND a.supermarket = :code_a AND b.supermarket = :code_b
-                AND a.price IS NOT NULL AND b.price IS NOT NULL
-                AND a.main_concept IS NOT NULL
-            ORDER BY diff DESC
-            LIMIT :lim
-        """), {"code_a": code_a, "code_b": code_b, "lim": limit}).fetchall()
-
         items = []
-        for r in rows:
-            cheaper = code_a if r.price_a <= r.price_b else code_b
-            items.append({
-                code_a.lower(): {"product_name": r.name_a, "price": round(float(r.price_a), 2), "brand": r.brand_a, "image_url": r.img_a},
-                code_b.lower(): {"product_name": r.name_b, "price": round(float(r.price_b), 2), "brand": r.brand_b, "image_url": r.img_b},
-                "cheaper": cheaper,
-                "savings": round(float(r.diff), 2),
-            })
 
-        return {"type": "biggest_savings", "items": items}
+        for concept in COMPARISON_ITEMS:
+            prod_a = (
+                db.query(Product)
+                .filter(Product.product_name.ilike(f"%{concept}%"), Product.supermarket == code_a, Product.price.isnot(None))
+                .order_by(Product.price)
+                .first()
+            )
+            prod_b = (
+                db.query(Product)
+                .filter(Product.product_name.ilike(f"%{concept}%"), Product.supermarket == code_b, Product.price.isnot(None))
+                .order_by(Product.price)
+                .first()
+            )
+            if prod_a and prod_b:
+                diff = abs(float(prod_a.price) - float(prod_b.price))
+                if diff > 0.10:
+                    cheaper = code_a if float(prod_a.price) <= float(prod_b.price) else code_b
+                    items.append({
+                        "concept": concept.title(),
+                        code_a.lower(): {"product_name": prod_a.product_name, "price": round(float(prod_a.price), 2), "brand": prod_a.brand, "image_url": prod_a.image_url},
+                        code_b.lower(): {"product_name": prod_b.product_name, "price": round(float(prod_b.price), 2), "brand": prod_b.brand, "image_url": prod_b.image_url},
+                        "cheaper": cheaper,
+                        "savings": round(diff, 2),
+                    })
+
+        items.sort(key=lambda x: x["savings"], reverse=True)
+        return {"type": "biggest_savings", "items": items[:limit]}
 
     elif type == "most_offers":
-        # Products with biggest discounts right now
+        # Products with biggest REAL discounts — filter out PUM-as-original-price
         products = (
             db.query(Product)
             .filter(
                 Product.is_on_offer == 1,
                 Product.supermarket.in_(active_codes),
                 Product.discount_percentage.isnot(None),
+                Product.discount_percentage <= 60,  # cap: anything >60% is data error
                 Product.price.isnot(None),
+                Product.original_price.isnot(None),
+                Product.original_price <= Product.price * 5,  # reject PUM-as-price
             )
             .order_by(Product.discount_percentage.desc())
             .limit(limit)
