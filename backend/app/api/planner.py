@@ -2494,7 +2494,7 @@ async def get_product_rankings(
     """Product rankings for landing page content. Public endpoint."""
     from sqlalchemy import func as sqlfunc
     from app.services.supermarket_registry import supermarket_registry
-    active_codes = supermarket_registry.get_all_codes()
+    active_codes = sorted(supermarket_registry.get_all_codes())  # sorted list for indexing
 
     if type == "cheapest_basket":
         # Compare basic basket products across supermarkets
