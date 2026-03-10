@@ -275,11 +275,11 @@ class ShoppingListAggregator:
         "tomate frito": "tomate_triturado",
         "tomate_frito": "tomate_triturado",
         # Burger/hamburguesa → carne picada (avoid "Burger Americana" prepared food)
-        "burger": "carne_picada_vacuno",
-        "hamburguesa": "carne_picada_vacuno",
-        "carne_hamburguesa": "carne_picada_vacuno",
-        "carne_burger": "carne_picada_vacuno",
-        "carne_picada": "carne_picada_vacuno",
+        "burger": "picada_vacuno",
+        "hamburguesa": "picada_vacuno",
+        "carne_hamburguesa": "picada_vacuno",
+        "carne_burger": "picada_vacuno",
+        "carne_picada": "picada_vacuno",
     }
 
     # Ingredientes que SIEMPRE deben usar ml (líquidos)

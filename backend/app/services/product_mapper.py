@@ -175,12 +175,34 @@ class ProductMapper:
         ingredient_id: int,
         exclude_product_id: Optional[int] = None,
     ) -> List[Product]:
-        """Find all products mapped to an ingredient via JOIN."""
+        """Find all products mapped to an ingredient via JOIN.
+
+        Cross-supermarket: also searches sibling ingredients that share
+        the same canonical_key prefix (e.g. arroz_redondo → arroz_redondo_hacendado).
+        """
+        # Get the resolved ingredient's canonical_key
+        ingredient = session.query(Ingredient).filter(Ingredient.id == ingredient_id).first()
+
+        # Collect ingredient IDs to search: the original + siblings with same prefix
+        ingredient_ids = [ingredient_id]
+        if ingredient and ingredient.canonical_key:
+            base_key = ingredient.canonical_key
+            siblings = (
+                session.query(Ingredient.id)
+                .filter(
+                    Ingredient.canonical_key.ilike(f"{base_key}%"),
+                    Ingredient.id != ingredient_id,
+                )
+                .limit(20)
+                .all()
+            )
+            ingredient_ids.extend(s.id for s in siblings)
+
         query = (
             session.query(Product)
             .join(IngredientProductMap, IngredientProductMap.product_id == Product.id)
             .filter(
-                IngredientProductMap.ingredient_id == ingredient_id,
+                IngredientProductMap.ingredient_id.in_(ingredient_ids),
                 Product.is_basic_ingredient == 1,
             )
         )
@@ -239,6 +261,27 @@ class ProductMapper:
             base_amount = 1.0
 
         unit_weight_g = ingredient.unit_weight_g if ingredient else None
+
+        # Fallback unit weights when ingredient.unit_weight_g is NULL
+        if not unit_weight_g and ingredient:
+            DEFAULT_UNIT_WEIGHTS = {
+                "limon": 100, "naranja": 200, "manzana": 180, "platano": 120,
+                "tomate": 150, "patata": 170, "cebolla": 150, "ajo": 5,
+                "huevo": 60, "burger": 150, "pechuga": 200, "filete": 200,
+                "calabacin": 200, "berenjena": 250, "pimiento": 150,
+                "pepino": 200, "zanahoria": 100, "aguacate": 170,
+                "melon": 1500, "salmon": 200, "merluza": 200,
+                "bacalao": 200, "pera": 170, "melocoton": 150,
+                "kiwi": 80, "mandarina": 80, "pomelo": 300,
+            }
+            ikey = (ingredient.canonical_key or "").lower()
+            for prefix, w in DEFAULT_UNIT_WEIGHTS.items():
+                if ikey.startswith(prefix) or f"_{prefix}" in ikey:
+                    unit_weight_g = w
+                    break
+            if not unit_weight_g:
+                # Generic fallback: 150g per unit (reasonable for most produce)
+                unit_weight_g = 150
 
         # Convert docena to units: 1 dc/dz = 12 ud
         # Also detect "1/2 Docena" in product name to fix base_amount

@@ -105,7 +105,7 @@ async def startup_event():
             {
                 "code": "CONSUM", "display_name": "Consum", "color": "#E8611A",
                 "icon": "storefront", "sort_order": 2,
-                "affiliate_url_template": "https://tienda.consum.es/es/search?q={product_name}",
+                "affiliate_url_template": "https://tiendaonline.consum.es/SearchEngine?q={product_name}",
             },
         ]
         for seed in SUPERMARKETS_SEED:
@@ -126,6 +126,70 @@ async def startup_event():
         print("[startup] SupermarketRegistry loaded.")
     except Exception as e:
         print(f"[startup] SupermarketRegistry fallback (DB not ready): {e}")
+
+    # Seed ingredient aliases for correct product matching
+    try:
+        from app.db.models import IngredientAlias, Ingredient as IngModel
+        ALIASES = {
+            # Salmon: avoid whole-fish "salmon_a_rodajas" (31€), prefer fillets
+            "salmon": "lomos_de_salmon_sin_piel_y_sin_espinas_hacendado_congelado",
+            "filete_de_salmon": "lomos_de_salmon_sin_piel_y_sin_espinas_hacendado_congelado",
+            # Common recipe names → real DB canonical_keys
+            "arroz": "arroz_redondo_hacendado",
+            "atun": "atun_claro_en_aceite_de_oliva_hacendado",
+            "anchoas": "filetes_de_anchoa_en_aceite_de_oliva_hacendado",
+            "bacalao": "filetes_de_bacalao_maredeus_ultracongelado",
+            "jamon_curado": "jamon_serrano_lonchas_incarlopsa",
+            "jamon_serrano": "jamon_serrano_lonchas_incarlopsa",
+            "pechuga_pavo": "filetes_pechuga_de_pavo",
+            "queso_rallado": "queso_rallado_emmental_gratinar_hacendado",
+            "queso_cheddar": "queso_lonchas_cheddar_de_vaca_hacendado",
+            "yogur": "yogur_natural_hacendado_0_mg_0_azucares_anadidos",
+            "nuez": "nuez_natural_hacendado_pelada",
+            "caldo_pollo": "caldo_de_pollo_hacendado",
+            "ketchup": "ketchup_hacendado",
+            "vinagre_manzana": "vinagre_de_manzana_hacendado",
+            "vinagre_vino": "vinagre_de_vino_blanco_hacendado",
+            "espaguetis": "macarron_fino_hacendado",
+            "espirales": "macarron_fino_hacendado",
+            "pasta": "macarron_fino_hacendado",
+            "pan_integral": "pan_integral_trigo_100",
+            "barra_pan": "barra_de_pan",
+            "aceitunas": "aceitunas_verdes_sin_hueso_hacendado",
+            "melon": "medio_melon_piel_de_sapo",
+        }
+        added = 0
+        for alias_key, target_key in ALIASES.items():
+            existing = session.query(IngredientAlias).filter(IngredientAlias.alias == alias_key).first()
+            if existing:
+                continue
+            target = session.query(IngModel).filter(IngModel.canonical_key == target_key).first()
+            if target:
+                session.add(IngredientAlias(alias=alias_key, ingredient_id=target.id))
+                added += 1
+        session.commit()
+        if added:
+            print(f"[startup] Seeded {added} ingredient aliases")
+    except Exception as e:
+        session.rollback()
+        print(f"[startup] Alias seeding note: {e}")
+
+    # Fix corrupted product prices (price = pum × 99 for some seafood)
+    try:
+        from sqlalchemy import text as sa_text_fix
+        result = session.execute(sa_text_fix("""
+            UPDATE products SET price = pum_calculated, base_amount = 1.0
+            WHERE pum_calculated > 0 AND base_unit = 'kg'
+            AND ABS(price / pum_calculated - 99) < 2
+        """))
+        if result.rowcount > 0:
+            session.commit()
+            print(f"[startup] Fixed {result.rowcount} corrupted product prices")
+        else:
+            session.rollback()
+    except Exception as e:
+        session.rollback()
+        print(f"[startup] Price fix note: {e}")
 
     # Ensure offer columns exist on products table (FASE 2A migration)
     try:
