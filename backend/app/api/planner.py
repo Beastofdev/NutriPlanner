@@ -2485,6 +2485,27 @@ BASIC_BASKET = [
 ]
 
 
+def _find_cheapest_product(db, term: str, supermarket_code: str):
+    """Find cheapest product matching term, preferring prefix matches."""
+    from app.db.models import Product
+    # Try prefix match first (more relevant)
+    prod = (
+        db.query(Product)
+        .filter(Product.product_name.ilike(f"{term}%"), Product.supermarket == supermarket_code, Product.price.isnot(None))
+        .order_by(Product.price)
+        .first()
+    )
+    if prod:
+        return prod
+    # Fall back to contains match
+    return (
+        db.query(Product)
+        .filter(Product.product_name.ilike(f"%{term}%"), Product.supermarket == supermarket_code, Product.price.isnot(None))
+        .order_by(Product.price)
+        .first()
+    )
+
+
 @router.get("/products/rankings")
 async def get_product_rankings(
     type: str = "cheapest_basket",
@@ -2506,16 +2527,7 @@ async def get_product_rankings(
             for code in active_codes:
                 product = None
                 for term in search_terms:
-                    product = (
-                        db.query(Product)
-                        .filter(
-                            Product.product_name.ilike(f"%{term}%"),
-                            Product.supermarket == code,
-                            Product.price.isnot(None),
-                        )
-                        .order_by(Product.price)
-                        .first()
-                    )
+                    product = _find_cheapest_product(db, term, code)
                     if product:
                         break
                 if product:
@@ -2568,18 +2580,8 @@ async def get_product_rankings(
         items = []
 
         for concept in COMPARISON_ITEMS:
-            prod_a = (
-                db.query(Product)
-                .filter(Product.product_name.ilike(f"%{concept}%"), Product.supermarket == code_a, Product.price.isnot(None))
-                .order_by(Product.price)
-                .first()
-            )
-            prod_b = (
-                db.query(Product)
-                .filter(Product.product_name.ilike(f"%{concept}%"), Product.supermarket == code_b, Product.price.isnot(None))
-                .order_by(Product.price)
-                .first()
-            )
+            prod_a = _find_cheapest_product(db, concept, code_a)
+            prod_b = _find_cheapest_product(db, concept, code_b)
             if prod_a and prod_b:
                 diff = abs(float(prod_a.price) - float(prod_b.price))
                 if diff > 0.10:
