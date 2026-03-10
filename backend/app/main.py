@@ -110,7 +110,11 @@ async def startup_event():
         ]
         for seed in SUPERMARKETS_SEED:
             existing = session.query(Supermarket).filter(Supermarket.code == seed["code"]).first()
-            if not existing:
+            if existing:
+                # Update affiliate URL if changed
+                if existing.affiliate_url_template != seed["affiliate_url_template"]:
+                    existing.affiliate_url_template = seed["affiliate_url_template"]
+            else:
                 session.add(Supermarket(
                     code=seed["code"],
                     display_name=seed["display_name"],
