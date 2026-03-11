@@ -1122,6 +1122,15 @@ async def generate_plan_v3(
             if rating_rows:
                 user_ratings = {r.recipe_id: r.rating for r in rating_rows}
 
+        # Budget → economic_level override (budget takes precedence)
+        if data.weekly_budget and data.weekly_budget > 0:
+            if data.weekly_budget <= 25:
+                data.economic_level = "economico"
+            elif data.weekly_budget <= 35:
+                data.economic_level = "economico"
+            # else keep whatever the frontend sent (normal/premium)
+            logger.info("[V3] Budget: %.0f€/persona/semana → economic_level=%s", data.weekly_budget, data.economic_level)
+
         logger.info("[V3] Iniciando selección de recetas verificadas...")
         menu_response = await nutritionist.get_smart_menu_v3(data, user_ratings=user_ratings)
 
@@ -1306,6 +1315,10 @@ async def generate_plan_v3(
                 if (p.get("name", "").strip() if isinstance(p, dict) else (p or "").strip())
             ],
             "seasonal_info": seasonal_info,
+            "budget_info": {
+                "weekly_budget_per_person": data.weekly_budget,
+                "economic_level": data.economic_level,
+            } if data.weekly_budget else None,
         }
         if meal_prep_guide:
             response["meal_prep_guide"] = meal_prep_guide

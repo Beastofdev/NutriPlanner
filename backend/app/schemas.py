@@ -51,6 +51,7 @@ class WizardData(BaseModel):
     current_weight: float = 0.0
     target_weight: float = 0.0
     budget: float = 80.0  # Legacy, mantener por compatibilidad
+    weekly_budget: Optional[float] = None  # Per-person weekly budget in €  (0 or None = no limit)
     economic_level: Literal["economico", "normal", "premium"] = "normal"
     prioritize_offers: bool = True
 

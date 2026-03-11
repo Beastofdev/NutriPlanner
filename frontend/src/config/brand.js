@@ -7,9 +7,9 @@
 
 export const BRAND = {
   name: import.meta.env.VITE_APP_NAME || 'NutriPlanner',
-  tagline: 'Compara precios de Mercadona y Consum',
-  landingTagline: 'Compara precios de 13,000+ productos entre Mercadona y Consum',
-  metaDescription: 'Compara precios de Mercadona y Consum en 13,000+ productos. Descubre donde comprar mas barato. Tambien planifica tu menu semanal gratis.',
+  tagline: 'Tu menu semanal con precios reales de supermercado',
+  landingTagline: 'Planifica tu menu semanal con precios reales de Mercadona y Consum',
+  metaDescription: 'Genera tu menu semanal personalizado con lista de compra y precios reales de Mercadona y Consum. Come bien por menos de 25€/semana. 260+ recetas, 100% gratis.',
   initials: 'NP',
   version: '1.0',
   supportEmail: 'soporte@nutriplanner.es',

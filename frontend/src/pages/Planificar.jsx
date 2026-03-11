@@ -40,6 +40,13 @@ const DEFAULT_SUPERMARKETS = [
     { code: 'CONSUM', display_name: 'Consum', color: '#E8611A' },
 ];
 
+const BUDGET_PRESETS = [
+    { value: 20, label: '~20€', desc: 'Muy economico' },
+    { value: 30, label: '~30€', desc: 'Economico' },
+    { value: 45, label: '~45€', desc: 'Normal' },
+    { value: 0, label: 'Sin limite', desc: 'Lo que sea' },
+];
+
 const LOADING_MESSAGES = [
     { icon: "psychology", text: "Analizando tu perfil nutricional..." },
     { icon: "search", text: "Buscando recetas en el catalogo..." },
@@ -57,6 +64,7 @@ export default function Planificar() {
     const [diet, setDiet] = useState('omnivoro');
     const [allergens, setAllergens] = useState([]);
     const [people, setPeople] = useState(1);
+    const [budget, setBudget] = useState(0); // 0 = no limit
 
     const [loading, setLoading] = useState(false);
     const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0]);
@@ -72,6 +80,10 @@ export default function Planificar() {
     }, []);
 
     const toggleAllergen = (a) => setAllergens(prev => prev.includes(a) ? prev.filter(x => x !== a) : [...prev, a]);
+
+    const budgetPerPerson = budget > 0 ? budget : null;
+    const totalBudget = budgetPerPerson ? budgetPerPerson * people : null;
+    const economicLevel = budget === 20 ? 'economico' : budget === 30 ? 'economico' : 'normal';
 
     const handleGenerate = async () => {
         if (loading) return;
@@ -97,7 +109,7 @@ export default function Planificar() {
             const payload = {
                 goal,
                 diet,
-                economic_level: 'normal',
+                economic_level: economicLevel,
                 prioritize_offers: true,
                 menu_mode: 'savings',
                 cooking_time: 'normal',
@@ -112,6 +124,7 @@ export default function Planificar() {
                 plan_days: 7,
                 meals_per_day: 3,
                 preferred_supermarket: superCode,
+                ...(totalBudget ? { weekly_budget: totalBudget } : {}),
             };
 
             const response = await api.generatePlanV3(payload);
@@ -129,10 +142,10 @@ export default function Planificar() {
             localStorage.setItem(lsKey('wizard_data'), JSON.stringify({
                 diet, allergens, hatedFoods: [], targetCalories: 2000,
                 cookingTime: 'normal', skillLevel: 'intermediate',
-                economicLevel: 'normal', menuMode: 'savings',
+                economicLevel, menuMode: 'savings', budget: budgetPerPerson,
             }));
 
-            track('plan_generated_public', { diet, goal, supermarket: superCode });
+            track('plan_generated_public', { diet, goal, supermarket: superCode, budget: budgetPerPerson });
 
             clearInterval(msgInterval);
             navigate('/mi-menu');
@@ -178,7 +191,7 @@ export default function Planificar() {
                 <h1 className="text-3xl sm:text-4xl" style={{ fontFamily: 'var(--font-display)', fontWeight: 700 }}>
                     Planifica tu semana
                 </h1>
-                <p className="text-[var(--color-text-secondary)] mt-2">Elige tus preferencias y genera tu menu personalizado</p>
+                <p className="text-[var(--color-text-secondary)] mt-2">Elige tus preferencias y genera tu menu con precios reales</p>
             </div>
 
             <div className="space-y-8">
@@ -208,10 +221,40 @@ export default function Planificar() {
                     </div>
                 </section>
 
-                {/* 2. Goal */}
+                {/* 2. Budget */}
                 <section>
                     <label className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider mb-3 block">
-                        2. Tu objetivo
+                        2. Presupuesto semanal por persona
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {BUDGET_PRESETS.map(opt => (
+                            <button
+                                key={opt.value}
+                                onClick={() => setBudget(opt.value)}
+                                className={`flex flex-col items-center gap-1 py-4 rounded-xl border-2 transition-all ${budget === opt.value
+                                    ? 'border-[var(--color-primary)] bg-[var(--color-tint-teal)] scale-[1.02] shadow-md'
+                                    : 'border-[var(--color-border)] bg-[var(--color-bg-card)] hover:border-[var(--color-primary)]/30'
+                                }`}
+                            >
+                                <span className={`text-lg font-bold ${budget === opt.value ? 'text-[var(--color-primary)]' : 'text-[var(--color-text-primary)]'}`}>
+                                    {opt.label}
+                                </span>
+                                <span className="text-[10px] text-[var(--color-text-muted)]">{opt.desc}</span>
+                            </button>
+                        ))}
+                    </div>
+                    {totalBudget && people > 1 ? (
+                        <p className="text-xs text-[var(--color-text-muted)] mt-2 flex items-center gap-1">
+                            <span className="material-symbols-outlined text-xs text-[var(--color-primary)]">info</span>
+                            {people} personas x {budgetPerPerson}€ = <strong className="text-[var(--color-text-primary)]">{totalBudget}€/semana</strong> total
+                        </p>
+                    ) : null}
+                </section>
+
+                {/* 3. Goal */}
+                <section>
+                    <label className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider mb-3 block">
+                        3. Tu objetivo
                     </label>
                     <div className="grid grid-cols-3 gap-2">
                         {GOAL_OPTIONS.map(opt => (
@@ -234,10 +277,10 @@ export default function Planificar() {
                     </div>
                 </section>
 
-                {/* 3. Diet */}
+                {/* 4. Diet */}
                 <section>
                     <label className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider mb-3 block">
-                        3. Tipo de dieta
+                        4. Tipo de dieta
                     </label>
                     <div className="flex flex-wrap gap-2">
                         {DIET_OPTIONS.map(opt => (
@@ -256,10 +299,10 @@ export default function Planificar() {
                     </div>
                 </section>
 
-                {/* 4. Family size */}
+                {/* 5. Family size */}
                 <section>
                     <label className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider mb-3 block">
-                        4. Personas
+                        5. Personas
                     </label>
                     <div className="flex gap-2">
                         {[1, 2, 3, 4, 5].map(n => (
@@ -280,10 +323,10 @@ export default function Planificar() {
                     </p>
                 </section>
 
-                {/* 5. Allergens */}
+                {/* 6. Allergens */}
                 <section>
                     <label className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider mb-2 block">
-                        5. Alergias (opcional)
+                        6. Alergias (opcional)
                     </label>
                     <div className="flex flex-wrap gap-2">
                         {COMMON_ALLERGENS.map(allergen => (
@@ -306,6 +349,7 @@ export default function Planificar() {
                     <span className="material-symbols-outlined text-[var(--color-primary)] text-lg mt-0.5">info</span>
                     <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">
                         <strong className="text-[var(--color-text-primary)]">Plan de 7 dias</strong> con 3 comidas diarias y ~2000 kcal.
+                        Precios reales de {selectedSuper === 'CONSUM' ? 'Consum' : 'Mercadona'}.
                         Sin registro, sin pagos. Tu menu y lista de compra estaran listos en segundos.
                     </p>
                 </div>
@@ -318,7 +362,7 @@ export default function Planificar() {
                 )}
             </div>
 
-            {/* CTA — inline on mobile, sticky on larger screens */}
+            {/* CTA */}
             <div className="mt-8">
                 <button
                     onClick={handleGenerate}
@@ -327,7 +371,7 @@ export default function Planificar() {
                     style={{ background: 'var(--gradient-hero)' }}
                 >
                     <span className="material-symbols-outlined text-xl">auto_awesome</span>
-                    Generar Mi Menu
+                    {totalBudget ? `Generar menu por ${totalBudget}€` : 'Generar Mi Menu'}
                 </button>
             </div>
         </div>
